@@ -1,0 +1,31 @@
+{
+    "name": "phppacks/phppack",
+    "description": "phppacks PHP phppack class.",
+    "license": "MIT",
+    "homepage": "https://github.com/phppacks/phppack",
+    "keywords": [
+        "phppacks",
+        "php-phppack"
+    ],
+    "authors": [
+    {
+        "name": "Yan Tianzeng",
+        "email": "qinuoyun@qq.com",
+        "homepage": "http://www.ub-u7.com/"
+    }],
+    "require":
+    {
+        "php": ">=5.6.6"
+    },
+    "autoload":
+    {
+        "files": [
+            "build/infrastructure.php",
+            "build/functions.php"
+        ],
+        "psr-4":
+        {
+            "phppacks\\phppack\\": "build"
+        }
+    }
+}
