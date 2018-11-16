@@ -4,7 +4,7 @@
  * @Author: qinuoyun
  * @Date:   2018-11-15 09:55:52
  * @Last Modified by:   qinuoyun
- * @Last Modified time: 2018-11-15 11:33:34
+ * @Last Modified time: 2018-11-15 22:40:23
  */
 if (!function_exists('__PHPPACK_ERROR')) {
     /**
@@ -76,6 +76,36 @@ if (!function_exists('remove_comment')) {
         return $content;
     }
 
+}
+
+if (!function_exists('compress_html')) {
+    /**
+     * 压缩html代码
+     * @param  string $value [description]
+     * @return [type]        [description]
+     */
+    function compress_html($string) {
+        $string  = str_replace("\r\n", '', $string); //清除换行符
+        $string  = str_replace("\n", '', $string); //清除换行符
+        $string  = str_replace("\t", '', $string); //清除制表符
+        $pattern = array(
+            "/> *([^ ]*) *</", //去掉注释标记
+            "/[\s]+/",
+            "/<!--[^!]*-->/",
+            "/\" /",
+            "/ \"/",
+            "'/\*[^*]*\*/'",
+        );
+        $replace = array(
+            ">\\1<",
+            " ",
+            "",
+            "\"",
+            "\"",
+            "",
+        );
+        return preg_replace($pattern, $replace, $string);
+    }
 }
 
 if (!function_exists('__PHPPACK_')) {
