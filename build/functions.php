@@ -108,12 +108,29 @@ if (!function_exists('compress_html')) {
     }
 }
 
-if (!function_exists('__PHPPACK_')) {
-
-}
-
-if (!function_exists('__PHPPACK_')) {
-
+if (!function_exists('__PHPPACK_FORMAT')) {
+    /**
+     * 处理驼峰准换
+     * @param  [type] $name [description]
+     * @param  string $sign [description]
+     * @return [type]       [description]
+     */
+    function __PHPPACK_FORMAT($name, $sign = "_") {
+        $temp_array = array();
+        for ($i = 0; $i < strlen($name); $i++) {
+            $ascii_code = ord($name[$i]);
+            if ($ascii_code >= 65 && $ascii_code <= 90) {
+                if ($i == 0) {
+                    $temp_array[] = chr($ascii_code + 32);
+                } else {
+                    $temp_array[] = $sign . chr($ascii_code + 32);
+                }
+            } else {
+                $temp_array[] = $name[$i];
+            }
+        }
+        return implode('', $temp_array);
+    }
 }
 
 if (!function_exists('__PHPPACK_')) {
