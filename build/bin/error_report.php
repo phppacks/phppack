@@ -33,9 +33,6 @@
 
     }
 
-    .error-list li,
-    .li {}
-
     .active {
         background-color: #df5c61;
     }

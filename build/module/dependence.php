@@ -4,7 +4,7 @@ namespace phppacks\phppack\module;
  * @Author: qinuoyun
  * @Date:   2018-11-15 11:07:08
  * @Last Modified by:   qinuoyun
- * @Last Modified time: 2018-11-19 14:34:41
+ * @Last Modified time: 2018-11-22 10:46:20
  */
 
 class dependence {
@@ -13,71 +13,77 @@ class dependence {
      * 配置信息
      * @var array
      */
-    public $config = array();
+    private $config = array();
 
     /**
      * 编译目录
      * @var string
      */
-    public $path = '';
+    private $path = '';
 
     /**
      * 循环解析值
      * @var integer
      */
-    public $itemIndex = 0;
-
-    /**
-     * 安装模块
-     * @var array
-     */
-    public $installedModules = array();
-
-    /**
-     * 样式模块
-     */
-    public $styleModules = array();
-
-    /**
-     * 插件模块
-     */
-    public $scriptModules = array();
-
-    /**
-     * 样式存储
-     * @var [type]
-     */
-    public $style;
-
-    /**
-     * less处理类
-     * @var [type]
-     */
-    public $less;
-
-    /**
-     * scss处理类
-     * @var [type]
-     */
-    public $scss;
-
-    /**
-     * 路由插槽
-     * @var [type]
-     */
-    public $router = "home/home";
-
-    public $phpRouter = "";
-
-    public $sonRouter = "";
-
-    public $is_router = true;
+    private $itemIndex = 0;
 
     /**
      * 可编译文件类型
      * @var [type]
      */
-    public $fileType = ['js', 'vue', 'htm', 'html'];
+    private $fileType = ['js', 'vue', 'htm', 'html'];
+
+    /**
+     * 安装模块
+     * @var array
+     */
+    private $installedModules = array();
+
+    /**
+     * 模板模块
+     * @var array
+     */
+    private $templateModules = array();
+
+    /**
+     * 样式模块
+     * @var array
+     */
+    private $styleModules = array();
+
+    /**
+     * 插件模块
+     * @var array
+     */
+    private $fileModules = array();
+
+    /**
+     * 加载模板
+     * @var array
+     */
+    private $loadModules = array();
+
+    /**
+     * HTMLD结构
+     * @var [type]
+     */
+    public $simpleHtmlDom;
+
+    /**
+     * 加载依赖
+     * @var array
+     */
+    private $import = array();
+
+    /**
+     * 节点查询模式match|ast
+     * @var string
+     */
+    private $module = "match";
+
+    private $less;
+
+    private $scss;
 
     /**
      * 执行页面显示
@@ -85,8 +91,48 @@ class dependence {
      * @return [type]         [description]
      */
     public function display($router) {
-        $this->router = $router;
+        ini_set("xdebug.max_nesting_level", 600);
+        set_time_limit(0);
         $this->compile("src");
+    }
+
+    /**
+     * 编译Less文件
+     * @param  string $file [description]
+     * @return [type]       [description]
+     */
+    public function less($file = '') {
+        if (!$this->less) {
+            require_once dirname(dirname(__FILE__)) . "/bin/lessc.inc.php";
+            $this->less = new \lessc();
+        }
+        if (is_file($file)) {
+            $content = $this->less->compileFile($file);
+            $this->intFileInfo($content, "css");
+        } else {
+            $content = $this->less->compile($file);
+            array_push($this->styleModules, $content);
+        }
+    }
+
+    /**
+     * 编译scss文件
+     * @param  string $file [description]
+     * @return [type]       [description]
+     */
+    public function scss($file = '') {
+        if (!$this->scss) {
+            require_once dirname(dirname(__FILE__)) . "/bin/scss.inc.php";
+            $this->scss = new \scssc();
+        }
+        if (is_file($file)) {
+            $content = $this->scss->compileFile($file);
+            $this->intFileInfo($content, "css");
+        } else {
+            $content = $this->scss->compile($file);
+            array_push($this->styleModules, $content);
+        }
+
     }
 
     /**
@@ -99,7 +145,6 @@ class dependence {
         $phppack = "";
         #判断目录是否为完整目录
         if ($is_full) {
-
             $phppack = trim($path, DS) . DS . "phppack.json";
         }
 
@@ -119,7 +164,6 @@ class dependence {
         #读取编译目录
         $this->path = dirname($phppack);
         $this->getEntry();
-        return array();
     }
 
     /**
@@ -129,89 +173,26 @@ class dependence {
     private function getEntry() {
         #改变目录
         chdir($this->path);
-        #执行路由
-        $this->routerProcesser();
         #循环读取文件-目前只支持一体化
-        foreach ($this->config['entry'] as $key => $value) {
-            $this->getFileInfo($key, $value);
+        foreach ($this->config['entry'] as $fileAlias => $fileName) {
+            if (is_file($fileName)) {
+                $this->deepSearchFile($fileName, $fileAlias);
+            } else {
+                __PHPPACK_ERROR("找不到{$fileName}入口文件", 80011);
+            }
         }
-        // P($this->installedModules);
-        // exit();
-        #模板文件分离模式
         $compontent = array();
-        #获取的数据信息
-        $informations = $this->getDomDocument();
-        #春促最后数据信息
-        #循环分析数据
-        foreach ($informations as $key => $son) {
-            #获取唯一标识符
-            $index = $son['index'];
-            #获取数据
-            $compontent[$index] = $son;
-            #根据类型选择
-            switch ($son['type']) {
-            case 'js':
-                $content = $son['body'];
-                break;
-            case 'html':
-            case 'vue':
-                $content = $son['script'];
-                break;
-            }
-            #查询匹配
-            // $ruleValue = "#import\s+(\w*)?(\s+from\s+)?[\'\"]([\.\/\w]*)[\'\"]#is";
-            // if (preg_match_all($ruleValue, $son['body'], $array, PREG_SET_ORDER)) {
-
-            //     foreach ($array as $key => $item) {
-            //         $retFIle         = $item;
-            //         $file            = $this->getTraceFile($item[3], $item[3], dirname($son['file']));
-            //         $retFIle['path'] = dirname($son['file']);
-            //         $retFIle['ret']  = $file;
-            //         #有文件加载
-            //         if (is_string($file)) {
-            //             $code    = md5_file($file);
-            //             $num     = $informations[$code];
-            //             $replace = "import {$item[1]} from 'phppack_" . $num['index'] . "_a';";
-            //         }
-            //         #删除不需要加载的文件
-            //         else {
-            //             $replace = '';
-            //         }
-            //         $content = str_replace($item[0], $replace, $content);
-            //     }
-            // }
-
-            #正则匹配规则数组
-            $ruleArray = array(
-                "#import\s+([\w\_\,\-\{\}\s]*)(from)\s*[\'\"]([\.\/\w\-\_]*)[\'\"]#is",
-                "#import\s+[\'\"]([\.\/\w\-\_]*)[\'\"]#is",
-            );
-            #循环查询匹配数据
-            foreach ($ruleArray as $key => $ruleValue) {
-                if (preg_match_all($ruleValue, $son['body'], $array, PREG_SET_ORDER)) {
-                    foreach ($array as $key => $item) {
-                        $retFIle         = $item;
-                        $itemName        = isset($item[3]) ? $item[3] : $item[1];
-                        $file            = $this->getTraceFile($itemName, $itemName, dirname($son['file']));
-                        $retFIle['path'] = dirname($son['file']);
-                        $retFIle['ret']  = $file;
-                        #有文件加载
-                        if (is_string($file)) {
-                            $code    = md5_file($file);
-                            $num     = $informations[$code];
-                            $replace = "import {$item[1]} from 'phppack_" . $num['index'] . "_a';";
-                        }
-                        #删除不需要加载的文件
-                        else {
-                            $replace = '';
-                        }
-                        $content = str_replace($item[0], $replace, $content);
-                    }
-                }
-            }
-            $compontent[$index]['body'] = $content;
+        foreach ($this->templateModules as $key => $body) {
+            $retContent = $this->contentLookupReplacement($body, $key);
+            array_push($compontent, $retContent);
         }
+        $style = $this->styleModules;
 
+        $this->getLoadList();
+        //exit();
+        #设置加载文件
+        $file_css = $this->loadModules['css'];
+        $file_js  = $this->loadModules['js'];
         #清除之前的缓存
         if (ob_get_level()) {
             ob_end_clean();
@@ -225,187 +206,390 @@ class dependence {
     }
 
     /**
-     * 路由处理器
-     * @param  string $value [description]
-     * @return [type]        [description]
+     * 深层查找文件
+     * @param  string $fileName  文件目录   例：./main.js
+     * @param  string $fileAlias 文件别名   例：app
+     * @return string            [description]
      */
-    private function routerProcesser() {
-        if ($this->is_router) {
-            $router = file_get_contents("./router.json");
-            $router = to_array($router);
-            $page   = array();
-            #循环获取当前页面
-            foreach ($router as $key => $value) {
-                if ($value['path'] == $this->router) {
-                    $this->sonRouter = "./pages/" . $this->router;
-                    $page            = $value;
-                }
-            }
-            if ($page) {
-                #循环读取
-                while ($page['parent']) {
-                    $page = $router[$page['parent']];
-                };
-                $this->phpRouter = $page['path'];
-            } else {
-                $this->phpRouter = $this->sonRouter = "./pages/" . $this->router;
-            }
-        }
-    }
-
-    /**
-     * 嵌套读取所有文件信息
-     * @param  string $name     名称
-     * @param  string $file     文件
-     * @param  string $alias    别名
-     * @return [type]        [description]
-     */
-    private function getFileInfo($name = '', $file = '', $alias = false) {
-        #========
-        #$__Demo['file'] = $file;
-        #========
-        $type = pathinfo($file, PATHINFO_EXTENSION);
-        $body = file_get_contents($file);
-        $code = md5_file($file);
-        $path = dirname($file);
-        #判断该模块是否存在
-        if (isset($this->installedModules[$code])) {
-            $this->installedModules[$code]['require'] = $alias ? $alias : $file;
+    private function deepSearchFile($fileName = "", $fileAlias = "") {
+        if (empty($fileName)) {
             return;
         }
-        #判断内容是否存在
-        if ($body) {
-            #存储安装模块
-            $this->installedModules[$code] = array(
-                "index"   => $this->itemIndex,
-                "name"    => $name,
-                "type"    => $type,
-                "file"    => $file,
-                "code"    => $code,
-                "require" => $alias ? [$alias] : [],
-                "body"    => $body,
-            );
-            $this->itemIndex++;
-            #查询匹配
-            // $ruleValue  = "#import\s+(\w*)?(\s+from\s+)?[\'\"]([\.\/\w\-\_]*)[\'\"]#is";
-            // if (preg_match_all($ruleValue, $body, $array, PREG_SET_ORDER)) {
-            //     $ret['son'] = $array;
-            //     foreach ($array as $key => $import) {
-            //         $item_name  = $import[1];
-            //         $item_alias = $import[3];
-            //         $item_file  = $import[3];
-            //         #获取完整文件路径
-            //         $fileName = $this->getTraceFile($item_file, $item_alias, $path);
-            //         if (is_array($fileName)) {
-            //             $this->setDatasTore($fileName[0], $fileName[1]);
-            //         } elseif (is_string($fileName)) {
-            //             $this->getFileInfo($item_name, $fileName, $item_alias);
-            //         } else {
-            //             __PHPPACK_ERROR("找不到{$item_file}依赖文件", 80011);
-            //         }
-            //     }
-            // }
+        /**
+         * 文件扩展名
+         * @var [type]
+         */
+        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
+        /**
+         * 获取文件内容
+         * @var [type]
+         */
+        $fileContent = file_get_contents($fileName);
+        /**
+         * 获取文件唯一码
+         * @var [type]
+         */
+        $fileCode = md5_file($fileName);
+        /**
+         * 获取文件路径
+         * @var [type]
+         */
+        $filePath = dirname($fileName);
 
-            $ruleArray = array(
-                "#import\s+([\w\,\_\-\{\}\s]*)(from)\s*[\'\"]([\.\/\w\-\_]*)[\'\"]#is",
-                "#import\s+[\'\"]([\.\/\w\-\_]*)[\'\"]#is",
-            );
-            #循环查询匹配多种情况的import
-            foreach ($ruleArray as $key => $ruleValue) {
-                #查询匹配
-                if (preg_match_all($ruleValue, $body, $array, PREG_SET_ORDER)) {
-                    #========$__Demo
-                    #$__Demo['import'] = $array;
-                    #========
-                    foreach ($array as $key => $import) {
-                        $item_name  = $import[1];
-                        $item_alias = isset($import[3]) ? $import[3] : $import[1];
-                        $item_file  = $item_alias;
-                        #获取完整文件路径
-                        $fileName = $this->getTraceFile($item_file, $item_alias, $path);
-                        #========$__Demo
-                        #$__Demo['import'][$key]['fileName'] = $fileName;
-                        #========
-                        if (is_array($fileName)) {
-                            $this->setDatasTore($fileName[0], $fileName[1]);
-                        } elseif (is_string($fileName)) {
-                            $this->getFileInfo($item_name, $fileName, $item_alias);
-                        } else {
-                            __PHPPACK_ERROR("找不到{$item_file}依赖文件", 80011);
-                        }
+        #判断该模块是否存在
+        if (isset($this->installedModules[$fileCode])) {
+            return;
+        }
+
+        #文件内容存在则执行
+        if ($fileContent) {
+            #根据文件类型处理
+            switch ($extension) {
+            #处理JS类型
+            case 'js':
+                #保存文件信息
+                $this->saveModules($fileCode, $fileName, $fileAlias, $extension, $fileContent);
+                #获取加载文件
+                $import = $this->getImportDeclaration($fileContent, $fileContent, $fileName);
+                #嵌套循环查询
+                foreach ($import as $key => $value) {
+                    $itemName = $this->getFileFullPath($value, $value, $fileName);
+                    if ($itemName) {
+                        $this->deepSearchFile($itemName, $itemName);
                     }
-
                 }
+                break;
+            #处理样式文件
+            case 'css':
+                $this->styleModules[$fileCode] = $fileContent;
+                break;
+            case 'less':
+                $this->less($fileName);
+                break;
+            case 'scss':
+            case 'sass':
+                $this->scss($fileName);
+                break;
+            #处理DOM结构
+            case 'vue':
+            case 'htm':
+            case 'html':
+                #保存文件信息
+                $this->saveModules($fileCode, $fileName, $fileAlias, $extension, $fileContent);
+                #获取加载文件
+                $import = $this->getDomDocument($fileName, $fileContent, $fileCode);
+                #嵌套循环查询
+                foreach ($import as $key => $value) {
+                    $itemName = $this->getFileFullPath($value, $value, $fileName);
+                    if ($itemName) {
+                        $this->deepSearchFile($itemName, $itemName);
+                    }
+                }
+                break;
             }
-            #========$__Demo
-            #P($__Demo);
-            #========
         }
     }
 
     /**
-     * 获取DOM信息
+     * 模块存储
+     * @param  string $code      唯一码
+     * @param  string $name      文件名
+     * @param  string $alias     别名
+     * @param  string $extension 扩展
+     * @param  string $content   内容
+     */
+    public function saveModules($code = '', $name = '', $alias = '', $extension = '', $content = '') {
+        #存储安装模块
+        $this->installedModules[$code] = array(
+            "index" => $this->itemIndex,
+            "name"  => $alias,
+            "type"  => $extension,
+            "file"  => $name,
+            "code"  => $code,
+        );
+        #保存文件信息
+        $this->templateModules[$code] = $content;
+        $this->itemIndex++;
+    }
+
+    /**
+     * 获取JS节点信息
+     * @param  string $fileContent 内容
+     * @param  string $body        完整BODY
+     * @param  string $file        文件
+     * @return [type]              [description]
+     */
+    private function getImportDeclaration($fileContent = '', $body = "", $file = "") {
+        switch ($this->module) {
+        case 'match':
+            return $this->phpRegexMatch($fileContent, $body, $file);
+            break;
+        case 'ast':
+            return $this->javascriptAST($fileContent, $body, $file);
+            break;
+        }
+    }
+
+    /**
+     * 通过PHP正则获取节点
+     * @param  string $fileContent [description]
+     * @param  string $body        [description]
+     * @param  string $file        [description]
+     * @return [type]              [description]
+     */
+    private function phpRegexMatch($fileContent = '', $body = "", $file = "") {
+        $this->checkScriptError($fileContent, $body, $file);
+        $fileContent = __PHPPACK_REMOVE_COMMENT($fileContent);
+        //highlight_string($fileContent);
+        $ruleValue = "#import\s+([\w]*|\{[\s\S]*?\})?([\s+]from[\s+])?[\'\"]([\.\/\w\-\_]*)[\'\"]#is";
+        if (preg_match_all($ruleValue, $fileContent, $array)) {
+            return $array[3];
+        }
+        return array();
+    }
+
+    /**
+     * 通过AST虚拟树获取节点
+     * @param  string $script [description]
+     * @param  string $body   [description]
+     * @param  string $file   [description]
+     * @return [type]         [description]
+     */
+    private function javascriptAST($script = '', $body = '', $file = '') {
+        try {
+            $this->import = array();
+            $options      = array('sourceType' => "module", "jsx" => true);
+            #生成AST
+            $ast = \Peast\Peast::latest($script, $options)->parse();
+            #建立遍历树
+            $traverser = new \Peast\Traverser;
+            $traverser->addFunction(function ($node) {
+                if ($node->getType() === "ImportDeclaration") {
+                    $this->import[] = $node->getSource()->getValue();
+                }
+            });
+            #Start traversing
+            $traverser->traverse($ast);
+            return $this->import;
+        } catch (\Peast\Syntax\Exception $e) {
+            #获取错误行
+            $line = $e->getPosition()->getLine();
+            #获取错误位置
+            $column = $e->getPosition()->getColumn();
+            #获取代码列表
+            $codeList = explode(PHP_EOL, $body);
+            #获取所在行
+            $onLine = $this->getRowsread($codeList);
+            #获取错误所在行
+            $errLine = $onLine + $line - 1;
+            #获取遍历开始行
+            $steLine = ($errLine >= 3) ? $errLine - 2 : 0;
+            include_once dirname(__DIR__) . DS . "/bin/error_report.php";
+            exit();
+        }
+    }
+
+    /**
+     * 检查JS代码错误
      * @param  string $value [description]
      * @return [type]        [description]
      */
-    private function getDomDocument($value = '') {
-        $documents = array();
-        #加载DOM插件
-        require dirname(__DIR__) . '/bin/simple_html_dom.php';
-        #循环编译文件
-        foreach ($this->installedModules as $key => $value) {
-            if ($value['type'] == "vue") {
-                #初始化配置
-                $scoped = false;
-                $script = "";
-                #获取DOM数据信息
-                $html = str_get_html($value['body']);
-                #处理CSS样式做作用域
-                $style = $this->intStyleInfo($html->find('style', 0), $value['code']);
-                #存储样式
-                $this->style[] = $style && @$style[0] ? $style[0] : '';
-                #处理样式作用域
-                $scoped = $style && @$style[1] ? $style[1] : false;
-                #处理模板功能
-                $template = $this->intTemplateinfo($html->find('template', 0), $scoped);
-                #获取JS文件信息
-                $content = $html->find('script', 0)->innertext;
-                #判断模板是否为空
-                if ($template && $content) {
-                    $this->checkScript($value['body'], $content, $value['file']);
-                    #查找替换内容
-                    $preg = "#export\s+default\s*{#is";
-                    if (preg_match($preg, $content, $matches)) {
-                        $template = str_replace('"', '\"', compress_html($template));
-                        $data     = <<<TPL
+    private function checkScriptError($script = '', $body = '', $file = '') {
+        try {
+            $options = array('sourceType' => "module", "jsx" => false);
+            #生成AST
+            $ast = \Peast\Peast::latest($script, $options)->parse();
+            // #创建渲染器
+            // $renderer = new \Peast\Renderer;
+            // #把格式化程序
+            // $renderer->setFormatter(new \Peast\Formatter\PrettyPrint);
+            // #渲染AST
+            // return $renderer->render($ast);
+        } catch (\Peast\Syntax\Exception $e) {
+            #获取错误行
+            $line = $e->getPosition()->getLine();
+            #获取错误位置
+            $column = $e->getPosition()->getColumn();
+            #获取代码列表
+            $codeList = explode(PHP_EOL, $body);
+            #获取所在行
+            $onLine = $this->getRowsread($codeList);
+            #获取错误所在行
+            $errLine = $onLine + $line - 1;
+            #获取遍历开始行
+            $steLine = ($errLine >= 3) ? $errLine - 2 : 0;
+            include_once dirname(__DIR__) . DS . "/bin/error_report.php";
+            exit();
+        }
+    }
+
+    /**
+     * 获取DOM结构数据
+     * @param  string $fileName    处理文件名
+     * @param  string $fileContent DOM数据文件
+     * @param  [type] $fileCode    文件唯一码
+     * @return [type]              [description]
+     */
+    private function getDomDocument($fileName = '', $fileContent = '', $fileCode = '') {
+        $import = [];
+        #判断DOM是否实例化
+        if (empty($this->simpleHtmlDom)) {
+            require dirname(__DIR__) . '/bin/simple_html_dom.php';
+            $html = $this->simpleHtmlDom = new \simple_html_dom();
+        } else {
+            $html = $this->simpleHtmlDom;
+        }
+        #加载DOM信息
+        $html->load($fileContent);
+        #处理样式-以及作用域另
+        $scoped = $this->intStyleInfo($html->find('style', 0), $fileCode);
+        #处理模板-以及作用域另
+        $template = $this->intTemplateinfo($html->find('template', 0), $scoped, $fileName);
+        #处理JS
+        $script = $html->find('script', 0)->innertext;
+        #判断模板是否为空
+        if ($template && $script) {
+            $import = $this->getImportDeclaration($script, $fileContent, $fileName);
+            #查找替换内容
+            $preg = "#export\s+default\s*{#is";
+            if (preg_match($preg, $script, $matches)) {
+                $template = str_replace('"', '\"', compress_html($template));
+                $data     = <<<TPL
 export default {
-  template:"{$template}",
+    template:"{$template}",
 TPL;
-                        $script = preg_replace($preg, $data, $content);
+                $script = preg_replace($preg, $data, $script);
+                #替换原有的数据
+                $this->templateModules[$fileCode] = $script;
+            }
+        }
+        #如果没有template
+        if (empty($template) && $script) {
+            $this->templateModules[$fileCode] = $script;
+        }
+        return $import;
+    }
+
+    /**
+     * 文件内容查找替换
+     * @return [type] [description]
+     */
+    private function contentLookupReplacement($content = "", $code = "") {
+        /**
+         * 节点查询模式match|ast
+         * @var string
+         */
+        switch ($this->module) {
+        case 'match':
+            return $this->phpRegexReplace($content, $code);
+            break;
+        case 'ast':
+            return $this->jsReplaceAST($content, $code);
+            break;
+        }
+    }
+
+    /**
+     * 通过正则替换
+     * @param  string $content [description]
+     * @param  string $code    [description]
+     * @return [type]          [description]
+     */
+    public function phpRegexReplace($content = "", $code = "") {
+        $parentPath = $this->installedModules[$code]['file'];
+        $ruleValue  = "#import\s+([\w]*|\{[\s\S]*?\})?([\s+]from[\s+])?[\'\"]([\.\/\w\-\_]*)[\'\"]#is";
+        if (preg_match_all($ruleValue, $content, $array, PREG_SET_ORDER)) {
+            foreach ($array as $key => $import) {
+                if (empty($import[1])) {
+                    $content = str_replace($import[0], "", $content);
+                } else {
+                    $file = $this->getFileFullPath($import[3], $import[3], $parentPath);
+                    if ($file) {
+                        $icode    = md5_file($file);
+                        $name     = "phppack_" . $this->installedModules[$icode]['index'] . "_a";
+                        $toimport = "import $import[1] from '$name'";
+                        $content  = str_replace($import[0], $toimport, $content);
+                    } else {
+                        $content = str_replace($import[0], "", $content);
+                    }
+
+                }
+            }
+        }
+        return $content;
+    }
+
+    /**
+     * 通过AST替换
+     * @param  string $content [description]
+     * @param  string $code    [description]
+     * @return [type]          [description]
+     */
+    public function jsReplaceAST($content = "", $code = "") {
+        $this->file = $this->installedModules[$code]['file'];
+        try {
+            $options = array('sourceType' => "module", "jsx" => true);
+            #生成AST
+            $ast       = \Peast\Peast::latest($content, $options)->parse();
+            $traverser = new \Peast\Traverser;
+            $traverser->addFunction(function ($node) {
+                if ($node->getType() === "ImportDeclaration") {
+                    $import = $node->getSource()->getValue();
+                    $ifile  = $this->getFileFullPath($import, $import, $this->file);
+                    #检查是否存在from
+                    $from = $node->getSpecifiers();
+                    if ($from && $ifile) {
+                        $name     = $from[0]->getLocal()->getName();
+                        $icode    = md5_file($ifile);
+                        $name     = "$name from phppack_" . $this->installedModules[$icode]['index'] . "_a";
+                        $literal  = new \Peast\Syntax\Node\ImportDeclaration();
+                        $newValue = $node->getSource()->setValue($name);
+                        return $literal->setSource($newValue);
+                    } else {
+                        return \Peast\Traverser::REMOVE_NODE;
                     }
                 }
-                $documents[$key]            = $value;
-                $documents[$key]['script']  = $script;
-                $documents[$key]['content'] = $content;
-                $html->clear();
-            } else {
-                $documents[$key] = $value;
-            }
+            });
+            #Start traversing
+            $traverser->traverse($ast);
+            #创建渲染器
+            $renderer = new \Peast\Renderer;
+            #把格式化程序
+            $renderer->setFormatter(new \Peast\Formatter\PrettyPrint);
+            #渲染AST
+            return $renderer->render($ast);
+        } catch (\Peast\Syntax\Exception $e) {
+            $file = $this->file;
+            #获取错误行
+            $line = $e->getPosition()->getLine();
+            #获取错误位置
+            $column = $e->getPosition()->getColumn();
+            #获取代码列表
+            $codeList = explode(PHP_EOL, $content);
+            #获取所在行
+            $onLine = $this->getRowsread($codeList);
+            #获取错误所在行
+            $errLine = $onLine + $line - 1;
+            #获取遍历开始行
+            $steLine = ($errLine >= 3) ? $errLine - 2 : 0;
+            include_once dirname(__DIR__) . DS . "/bin/error_report.php";
+            exit();
         }
-        return $documents;
     }
 
     /**
-     * 文件信息
-     * @param  string $fileName   文件路径
+     * 获取文件完整路径
+     * @param  string $fileName   文件名
      * @param  string $fileAlias  文件别名
-     * @param  string $parentPath 父级目录
+     * @param  string $parentPath 父级文件
      * @return [type]             [description]
      */
-    public function getTraceFile2($fileName = '', $fileAlias = '', $parentPath = "") {
+    public function getFileFullPath($fileName = '', $fileAlias = '', $parentPath = '') {
+        #获取父级路径
+        $parentPath = pathinfo($parentPath, PATHINFO_EXTENSION) ? dirname($parentPath) : $parentPath;
         #读取扩展名
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-        #判断是否是../目录
+        ##判断是否是../目录
         if (stripos($fileAlias, "../") === 0) {
             $fileAlias = substr($fileName, 3);
             $fileName  = dirname($parentPath) . DS . $fileAlias;
@@ -416,32 +600,19 @@ TPL;
                 $fileName = $parentPath . trim($fileName, '.');
             }
         }
-        #判断是否为路由
-        if ($fileAlias == $fileName && $fileAlias == "phpRouter" && $this->is_router) {
-            $fileName = $this->phpRouter;
-        }
-        if ($fileAlias == $fileName && $fileAlias == "sonRouter" && $this->is_router) {
-            $fileName = $this->sonRouter;
-        }
         #如果文件有扩展名
         if ($extension) {
             #检查依赖文件是否存在
             if (!is_file($fileName)) {
                 return false;
             }
-            #如果是CSS样式转样式模块
-            if (strtolower($extension) == "css") {
-                return [$fileName, $extension];
-            }
-            #如果是JS插件转插件模块
-            if (strtolower($extension) == "js") {
-                return [$fileName, $extension];
-            }
         } else {
             #判断处理为插件依赖模块
             $dependencies = array_keys($this->config['dependencies']);
             if (in_array($fileAlias, $dependencies)) {
                 $fileName = "./plugin/" . $fileAlias . ".js";
+                $this->intFileInfo($fileName, 'js');
+                return false;
             }
             #判断处理非插件依赖关系
             else {
@@ -466,93 +637,75 @@ TPL;
     }
 
     /**
-     * 文件信息
-     * @param  string $fileName   文件路径
-     * @param  string $fileAlias  文件别名
-     * @param  string $parentPath 父级目录
-     * @return [type]             [description]
+     * 返回代码所在行
+     * @return [type] [description]
      */
-    public function getTraceFile($fileName = '', $fileAlias = '', $parentPath = "") {
-        #读取扩展名
-        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-        #判断是否是../目录
-        if (stripos($fileAlias, "../") === 0) {
-            $fileAlias = substr($fileName, 3);
-            $fileName  = dirname($parentPath) . DS . $fileAlias;
-        }
-        #目录机构不是顶级或当前
-        else {
-            if ($parentPath !== '.' && stripos($fileName, "/") !== 0) {
-                $fileName = $parentPath . trim($fileName, '.');
-            }
-        }
-        #判断是否为路由
-        if ($fileAlias == $fileName && $fileAlias == "phpRouter" && $this->is_router) {
-            $fileName = $this->phpRouter;
-        }
-        if ($fileAlias == $fileName && $fileAlias == "sonRouter" && $this->is_router) {
-            $fileName = $this->sonRouter;
-        }
-        #如果文件有扩展名
-        if ($extension) {
-            #检查依赖文件是否存在
-            if (!is_file($fileName)) {
-                return false;
-            }
-            #如果是CSS样式转样式模块
-            if (strtolower($extension) == "css") {
-                return [$fileName, $extension];
-            }
-            #如果是JS插件转插件模块
-            if (strtolower($extension) == "js") {
-                return [$fileName, $extension];
-            }
-        } else {
-            #判断处理为插件依赖模块
-            $dependencies = array_keys($this->config['dependencies']);
-            if (in_array($fileAlias, $dependencies)) {
-                $fileName = "./plugin/" . $fileAlias . ".js";
-            }
-            #判断处理非插件依赖关系
-            else {
-                #保存原名
-                $rawname = $fileName;
-                #设置后缀名并加载
-                $fileName = $rawname . ".js";
-                if (!is_file($fileName)) {
-                    $fileName = $rawname . ".vue";
-                }
-                #设置后缀名并加载
-                if (!is_file($fileName)) {
-                    $fileName = $rawname . ".html";
-                }
-                #检查依赖文件是否存在
-                if (!is_file($fileName)) {
-                    return false;
+    public function getRowsread($content) {
+        $line = 1;
+        foreach ($content as $key => $value) {
+            $preg = "#\<script(.*?)\>#is";
+            if (preg_match($preg, $value, $matches)) {
+                $s = trim($matches[1]);
+                if (md5($s) !== md5('type="text/json"') && $s !== md5("type='text/json'")) {
+                    $line = $key;
                 }
             }
         }
-        return $fileName;
+        return $line;
     }
 
     /**
-     * 获取模板内容信息
-     * @param  string $document [description]
-     * @return [type]           [description]
+     * 获取加载列表
+     * @param  string $value [description]
+     * @return [type]        [description]
      */
-    private function intTemplateinfo($tpl = '', $scoped = false) {
-        #获取模板文件 - 废弃
-        //$document = $tpl->find('template', 0);
-        if ($tpl) {
-            #处理template子集
-            foreach ($tpl->children() as $key => $val) {
-                $this->tagDispose($val, $scoped);
+    public function getLoadList() {
+        $path = getcwd() . "/" . $this->config['build']['path'];
+        $url  = $this->web() . "/" . $this->config['build']['path'];
+        foreach ($this->fileModules as $key => $value) {
+            $file = $key . "." . $value['type'];
+            to_mkdir($path . "/" . $file, $value['body'], true, true);
+            switch ($value['type']) {
+            case 'css':
+                $this->loadModules['css'][] = $url . "/" . $file;
+                break;
+            case 'js':
+                $this->loadModules['js'][] = $url . "/" . $file;
+                break;
             }
-            return $tpl->innertext;
-        } else {
-            return '';
         }
+    }
 
+    /**
+     * 处理文件信息
+     * @param  string $file [description]
+     * @param  string $type [description]
+     * @return [type]       [description]
+     */
+    public function intFileInfo($file = '', $type = 'js') {
+        #判断是否为文件
+        if (is_file($file)) {
+            $code = md5_file($file);
+            #判断如果该文件为加载则存储
+            if (!isset($this->fileModules[$code])) {
+                $body = file_get_contents($file);
+                #写入文件模组
+                $this->fileModules[$code] = array(
+                    "body" => $body,
+                    "type" => $type,
+                );
+            }
+        } elseif (!empty($file)) {
+            $code = md5($file);
+            #判断如果该文件为加载则存储
+            if (!isset($this->fileModules[$code])) {
+                #写入文件模组
+                $this->fileModules[$code] = array(
+                    "body" => $file,
+                    "type" => $type,
+                );
+            }
+        }
     }
 
     /**
@@ -567,26 +720,51 @@ TPL;
         #设置作用域参数
         $scoped  = $style->scoped ? "data-v-" . substr($code, 0, 8) : false;
         $content = $style->innertext;
+        $istyle  = $scoped ? $this->cssScoped($content, $scoped) : $content;
         #CSS语法问题
-        switch ($style->less) {
-        case 'less':
-            require_once dirname(dirname(__FILE__)) . "/bin/lessc.inc.php";
-            if (!$this->less) {
-                $this->less = new \lessc();
+        if ($lang = $style->lang) {
+            switch ($lang) {
+            case 'less':
+                $this->less($istyle);
+                break;
+            case 'scss':
+            case 'sass':
+                $this->scss($istyle);
+                break;
             }
-            $content = $this->less->compile($content);
-            break;
-        case 'scss':
-        case 'sass':
-            require_once dirname(dirname(__FILE__)) . "/bin/scss.inc.php";
-            if (!$this->scss) {
-                $this->scss = new \scssc();
-            }
-            $content = $this->scss->compile($content);
-            break;
+        } else {
+            array_push($this->styleModules, $istyle);
         }
-        $style = $scoped ? $this->cssScoped($content, $scoped) : $content;
-        return [$style, $scoped];
+        return $scoped;
+    }
+
+    /**
+     * 获取模板内容信息
+     * @param  string $document [description]
+     * @return [type]           [description]
+     */
+    private function intTemplateinfo($tpl = '', $scoped = false, $fileName = '') {
+        if ($tpl) {
+            $this->intDomImage($tpl->find('img'), $fileName);
+            #处理template子集
+            foreach ($tpl->children() as $key => $val) {
+                $this->tagDispose($val, $scoped);
+            }
+            return $tpl->innertext;
+        } else {
+            return '';
+        }
+    }
+
+    public function intDomImage($img = '', $fileName) {
+        if ($img) {
+            foreach ($img as $key => $value) {
+                if ($src = $value->src) {
+                    $file       = $this->getFileFullPath($src, $src, $fileName);
+                    $value->src = base64EncodeImage($file);
+                }
+            }
+        }
     }
 
     /**
@@ -627,76 +805,26 @@ TPL;
     }
 
     /**
-     * 检查JS代码错误
-     * @param  string $value [description]
-     * @return [type]        [description]
+     * 网站域名
+     *
+     * @return string
      */
-    private function checkScript($body = '', $script = '', $file = '') {
-        try {
-            $options = array('sourceType' => "module", "jsx" => true);
-            #生成AST
-            $ast = \Peast\Peast::latest($script, $options)->parse();
-        } catch (\Peast\Syntax\Exception $e) {
-            #获取错误行
-            $line = $e->getPosition()->getLine();
-            #获取错误位置
-            $column = $e->getPosition()->getColumn();
-            #获取代码列表
-            $codeList = explode(PHP_EOL, $body);
-            #获取所在行
-            $onLine = $this->getRowsread($codeList);
-            #获取错误所在行
-            $errLine = $onLine + $line - 1;
-            #获取遍历开始行
-            $steLine = ($errLine >= 3) ? $errLine - 2 : 0;
-            include_once dirname(__DIR__) . DS . "/bin/error_report.php";
-            exit();
-        }
+    private function domain() {
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+        return defined('RUN_MODE') && RUN_MODE != 'HTTP' ? ''
+        : trim($protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/\\');
     }
 
     /**
-     * 返回代码所在行
-     * @return [type] [description]
+     * 根据伪静态配置
+     * 添加带有入口文件的链接
+     *
+     * @return string
      */
-    public function getRowsread($content) {
-        $line = 1;
-        foreach ($content as $key => $value) {
-            $preg = "#\<script(.*?)\>#is";
-            if (preg_match($preg, $value, $matches)) {
-                $s = trim($matches[1]);
-                if (md5($s) !== md5('type="text/json"') && $s !== md5("type='text/json'")) {
-                    $line = $key;
-                }
-            }
-        }
-        return $line;
+    private function web() {
+        $root = self::domain();
+        $path = trim(str_replace(ROOT_DIR, "", getcwd()), DS);
+        return $root . "/" . $path;
     }
 
-    /**
-     * 设置数据存储
-     * @param string $fileName  [description]
-     * @param string $extension [description]
-     */
-    public function setDatasTore($fileName = '', $extension = '') {
-        #获取样式信息
-        $body = file_get_contents($fileName);
-        $code = md5_file($fileName);
-        switch ($extension) {
-        case 'css':
-            $this->styleModules[$code] = array(
-                "file" => $fileName,
-                "code" => $code,
-                "body" => $body,
-            );
-            break;
-        case 'js':
-            #存储样式模块
-            $this->styleModules[$code] = array(
-                "file" => $fileName,
-                "code" => $code,
-                "body" => $body,
-            );
-            break;
-        }
-    }
 }

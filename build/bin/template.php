@@ -5,9 +5,17 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>demo</title>
     <script type="text/javascript" src="<?php echo ROOT . "/vendor/phppacks/phppack/build/bin/babel.js"; ?>"></script>
-    <link rel="stylesheet" type="text/css" href="https://n3-components.github.io/N3-components/static/index.min.css">
+
+    <?php foreach ($file_css as $key => $value): ?>
+    <link rel="stylesheet" type="text/css" href="<?php echo $value; ?>">
+    <?php endforeach;?>
+    <?php foreach ($file_js as $key => $value): ?>
+    <script type="text/javascript" src="<?php echo $value; ?>"></script>
+    <?php endforeach;?>
+
+
     <style type="text/css">
-    <?php foreach ($this->style as $key => $value): ?>
+    <?php foreach ($style as $key => $value): ?>
         <?php echo $value; ?>
     <?php endforeach;?>
     </style>
@@ -42,8 +50,8 @@
     <div id="app"></div>
     <!-- built files will be auto injected -->
     <?php foreach ($compontent as $key => $value): ?>
-    <script type="text/babel" code="<?php echo $value['index']; ?>">
-        <?php echo $value['body']; ?>
+    <script type="text/babel" code="<?php echo $key; ?>">
+        <?php echo $value; ?>
     </script>
     <?php endforeach;?>
     <script type="text/babel" code="999999999">

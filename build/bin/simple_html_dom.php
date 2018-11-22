@@ -1054,7 +1054,7 @@ class simple_html_dom {
         'option' => array('option' => 1),
     );
 
-    public function __construct($str = null, $lowercase = false, $forceTagsClosed = true, $target_charset = DEFAULT_TARGET_CHARSET, $stripRN = true, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
+    public function __construct($str = null, $lowercase = false, $forceTagsClosed = true, $target_charset = DEFAULT_TARGET_CHARSET, $stripRN = false, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
         if ($str) {
             if (preg_match("/^http:\/\//i", $str) || is_file($str)) {
                 $this->load_file($str);
@@ -1074,7 +1074,7 @@ class simple_html_dom {
     }
 
     // load html from string
-    public function load($str, $lowercase = false, $stripRN = true, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
+    public function load($str, $lowercase = false, $stripRN = false, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
         global $debugObject;
 
         // prepare
@@ -1169,7 +1169,7 @@ class simple_html_dom {
     }
 
     // prepare HTML data and init everything
-    protected function prepare($str, $lowercase = false, $stripRN = true, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
+    protected function prepare($str, $lowercase = false, $stripRN = false, $defaultBRText = DEFAULT_BR_TEXT, $defaultSpanText = DEFAULT_SPAN_TEXT) {
         $this->clear();
 
         // set the length of content before we do anything to it.

@@ -4,7 +4,7 @@
  * @Author: qinuoyun
  * @Date:   2018-11-15 09:55:52
  * @Last Modified by:   qinuoyun
- * @Last Modified time: 2018-11-15 22:40:23
+ * @Last Modified time: 2018-11-22 10:43:59
  */
 if (!function_exists('__PHPPACK_ERROR')) {
     /**
@@ -108,6 +108,70 @@ if (!function_exists('compress_html')) {
     }
 }
 
+if (!function_exists('base64EncodeImage')) {
+
+    /**
+     * 将图片转Base64位
+     * @param  [type] $image_file [description]
+     * @return [type]             [description]
+     */
+    function base64EncodeImage($image_file) {
+        $base64_image = '';
+        $image_info   = getimagesize($image_file);
+        $image_data   = fread(fopen($image_file, 'r'), filesize($image_file));
+        $base64_image = 'data:' . $image_info['mime'] . ';base64,' . chunk_split(base64_encode($image_data));
+        return $base64_image;
+    }
+}
+
+if (!function_exists('to_mkdir')) {
+    /**
+     * 创建目录
+     * @param    string    $path     目录名称，如果是文件并且不存在的情况下会自动创建
+     * @param    string    $data     写入数据
+     * @param    bool    $is_full  完整路径，默认False
+     * @param    bool    $is_cover 强制覆盖，默认False
+     * @return   bool    True|False
+     */
+    function to_mkdir($path = null, $data = null, $is_full = false, $is_cover = false) {
+        $file = $path;
+        #非完整路径进行组合
+        if (!$is_full) {
+            $path = ROOT_DIR . '/' . ltrim(ltrim($path, './'), '/');
+        }
+        #检测是否为文件
+        $file_suffix = pathinfo($path, PATHINFO_EXTENSION);
+        if ($file_suffix) {
+            $path = pathinfo($path, PATHINFO_DIRNAME);
+        } else {
+            $path = rtrim($path, '/');
+        }
+        #执行目录创建
+        if (!is_dir($path)) {
+            if (!mkdir($path, 0777, true)) {
+                return false;
+            }
+            chmod($path, 0777);
+        }
+        #文件则进行文件创建
+        if ($file_suffix) {
+            if (!is_file($file)) {
+                if (!file_put_contents($file, $data)) {
+                    return false;
+                }
+            } else {
+                #强制覆盖
+                if ($is_cover) {
+                    if (!file_put_contents($file, $data)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+}
+
 if (!function_exists('__PHPPACK_FORMAT')) {
     /**
      * 处理驼峰准换
@@ -133,12 +197,15 @@ if (!function_exists('__PHPPACK_FORMAT')) {
     }
 }
 
-if (!function_exists('__PHPPACK_')) {
-
-}
-
-if (!function_exists('__PHPPACK_')) {
-
+if (!function_exists('__PHPPACK_REMOVE_COMMENT')) {
+/**
+ * 去除PHP代码注释
+ * @param  string $content 代码内容
+ * @return string 去除注释之后的内容
+ */
+    function __PHPPACK_REMOVE_COMMENT($content) {
+        return preg_replace("/(\/\*.*\*\/)|(#.*?\n)|(\/\/.*?\n)/s", '', str_replace(array("\r\n", "\r"), "\n", $content));
+    }
 }
 
 if (!function_exists('__PHPPACK_')) {
