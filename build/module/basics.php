@@ -4,326 +4,133 @@ namespace phppacks\phppack\module;
  * @Author: qinuoyun
  * @Date:   2018-11-15 11:07:08
  * @Last Modified by:   qinuoyun
- * @Last Modified time: 2018-11-29 22:17:37
+ * @Last Modified time: 2018-11-30 16:33:18
  */
 
-class dependence {
+class basics {
 
     /**
      * 配置信息
      * @var array
      */
-    private $config = array();
+    protected $config = array();
 
     /**
      * 编译目录
      * @var string
      */
-    private $path = '';
+    protected $path = '';
 
     /**
      * 循环解析值
      * @var integer
      */
-    private $itemIndex = 0;
+    protected $itemIndex = 0;
 
     /**
      * 可编译文件类型
      * @var [type]
      */
-    private $fileType = ['js', 'vue', 'htm', 'html'];
+    protected $fileType = ['js', 'vue', 'htm', 'html'];
 
     /**
      * 安装模块
      * @var array
      */
-    private $installedModules = array();
+    protected $installedModules = array();
 
     /**
      * 模板模块
      * @var array
      */
-    private $templateModules = array();
+    protected $templateModules = array();
 
     /**
      * 样式模块
      * @var array
      */
-    private $styleModules = array();
+    protected $styleModules = array();
 
     /**
      * 插件模块
      * @var array
      */
-    private $fileModules = array();
+    protected $fileModules = array();
 
     /**
      * 加载模板
      * @var array
      */
-    private $loadModules = array();
+    protected $loadModules = array();
 
     /**
      * HTMLD结构
      * @var [type]
      */
-    public $simpleHtmlDom;
+    protected $simpleHtmlDom;
 
     /**
      * 加载依赖
      * @var array
      */
-    private $import = array();
+    protected $import = array();
 
     /**
      * 节点查询模式match|ast
      * @var string
      */
-    private $module = "match";
+    protected $module = "match";
 
-    private $router;
+    protected $less;
 
-    private $less;
+    protected $scss;
 
-    private $scss;
-
-    private $working;
+    protected $working;
 
     public function __construct() {
-        $this->working['starttime'] = microtime(true);
         ini_set("xdebug.max_nesting_level", 600);
         set_time_limit(0);
     }
 
-    /**
-     * 执行页面显示
-     * @param  [type] $router [description]
-     * @return [type]         [description]
-     */
-    public function display($router = '', $path = '', $is_full = false) {
-        $this->router = $router;
-        #获取配置文件
-        $this->intConfig($path, $is_full);
-        #解析入口文件-返回所有数据
-        $data = $this->getEntry();
-        $html = $this->htmlSplitting($data);
-        #分解后的数据部署
-        $file = base64_decode($this->config['build']['template']);
-        if (!is_file($file)) {
-            __PHPPACK_ERROR("[$file]HTML文件不存在", 70001);
-        }
-        $file                     = file_get_contents($file);
-        $content                  = str_replace('</head>', $html, $file);
-        $this->working['endtime'] = microtime(true);
-        $this->working['runtime'] = round($this->working['endtime'] - $this->working['starttime'], 5);
-        $this->working['memory']  = memory_get_usage();
-        #清除之前的缓存
-        if (ob_get_level()) {
-            ob_end_clean();
-        }
-        echo $content;
-        exit;
-    }
+    protected function clear() {
+        /**
+         * 循环解析值
+         * @var integer
+         */
+        $this->itemIndex = 0;
 
-    /**
-     * 执行编译-API调用
-     */
-    public function compile($router = '', $path = '', $is_full = false) {
-        #获取配置文件
-        $this->intConfig($path, $is_full);
-        #解析入口文件-返回所有数据
-        $data = $this->getEntry();
-        extract($data);
-        #分解后的数据部署
-        $js           = to_json($js);
-        $css          = to_json($css);
-        $style        = $this->styleModules;
-        $config       = to_json($this->config);
-        $this->router = $router;
-        #清除之前的缓存
-        if (ob_get_level()) {
-            ob_end_clean();
-        }
-        #导入编译文件
-        ob_start();
-        require dirname(__DIR__) . '/bin/compile.php';
-        $content = ob_get_clean();
-        echo $content;
-        exit;
-    }
+        /**
+         * 安装模块
+         * @var array
+         */
+        $this->installedModules = array();
 
-    /**
-     * 打包编译-API
-     * @param  string $value [description]
-     * @return [type]        [description]
-     */
-    public function build($router = '', $path = '', $is_full = false) {
-        #获取配置文件
-        $this->intConfig($path, $is_full);
-        #解析入口文件-返回所有数据
-        $data = $this->getEntry();
-        extract($data);
-        #分解后的数据部署
-        $js           = to_json($js);
-        $css          = to_json($css);
-        $style        = $this->styleModules;
-        $config       = to_json($this->config);
-        $url          = ROOT . "/phppack/code/ensure";
-        $this->router = $router;
-        #清除之前的缓存
-        if (ob_get_level()) {
-            ob_end_clean();
-        }
-        #导入编译文件
-        ob_start();
-        require dirname(__DIR__) . '/bin/build.php';
-        $content = ob_get_clean();
-        echo $content;
-        exit;
-    }
+        /**
+         * 模板模块
+         * @var array
+         */
+        $this->templateModules = array();
 
-    /**
-     * 调用不同的方法
-     * @param  string $action [description]
-     * @return [type]         [description]
-     */
-    public function code($action = '') {
-        switch ($action) {
-        case 'single':
-            $this->single();
-            break;
-        case 'ensure':
-            $this->ensure();
-            break;
-        default:
-            echo "找不到方法";
-            break;
-        }
-    }
+        /**
+         * 样式模块
+         * @var array
+         */
+        $this->styleModules = array();
 
-    /**
-     * 创建数据打包-API-分包
-     * @param  string $value [description]
-     * @return [type]        [description]
-     */
-    public function ensure($value = '') {
-        $script = <<<SCR
-function GetHttpRequest() {
-    if (window.XMLHttpRequest)
-        return new XMLHttpRequest();
-    else if (window.ActiveXObject)
-        return new ActiveXObject("MsXml2.XmlHttp");
-}
+        /**
+         * 插件模块
+         * @var array
+         */
+        $this->fileModules = array();
 
-function ajaxPage(sId, url) {
-    var oXmlHttp = GetHttpRequest();
-    oXmlHttp.onreadystatechange = function() {
-        if (oXmlHttp.readyState == 4) {
-            includeJS(sId, url, oXmlHttp.responseText);
-        }
-    }
-    oXmlHttp.open('GET', url, false);
-    oXmlHttp.send(null);
-}
-
-function includeJS(sId, fileUrl, source) {
-    if ((source != null) && (!document.getElementById(sId))) {
-        var oHead = document.getElementsByTagName('HEAD').item(0);
-        var oScript = document.createElement("script");
-        oScript.type = "text/javascript";
-        oScript.id = sId;
-        oScript.text = source;
-        oHead.appendChild(oScript);
-    }
-}
-
-var __phppack_require = [];
-var __phppack_compile = function(modules) {
-    var installedModules = [];
-    function require(moduleNum) {
-
-        ajaxPage(moduleNum, moduleNum + ".js");
-
-        var numArr =  moduleNum.split('_');
-        var moduleId = numArr[1];
-        if (installedModules[moduleId]){
-            return installedModules[moduleId].exports;
-        }
-        var module = installedModules[moduleId] = {
-            exports: {},
-            id: moduleId,
-            loaded: false
-        };
-        modules[moduleId].call(module.exports, module, module.exports, require);
-        module.loaded = true;
-        return module.exports;
-    }
-
-    function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-    require.ensure = function(name){
-        var _ensure = require(name);
-        var _ensure2 = _interopRequireDefault(_ensure);
-        return _ensure2.default;
-    }
-    require.m = modules;
-    require.c = installedModules;
-    require.p = "";
-    window.onload =function(){
-        return require("phppack_0_a");
-    }
-}
-__phppack_compile(__phppack_require);
-SCR;
-        $fileList = to_array(base64_decode($_POST['compontent']));
-        $config   = empty($_POST['config']) ? [] : to_array($_POST['config']);
-        $data     = array(
-            'compontent' => $script,
-            'style'      => base64_decode($_POST['style']),
-            'router'     => empty($_POST['router']) ? 'home/home' : $_POST['router'],
-            'config'     => $config,
-            'css'        => empty($_POST['css']) ? [] : to_array($_POST['css']),
-            'js'         => empty($_POST['js']) ? [] : to_array($_POST['js']),
+        /**
+         * 加载模板
+         * @var array
+         */
+        $this->loadModules = array(
+            "css" => [],
+            "js"  => []
         );
-        foreach ($fileList as $key => $value) {
-            $filePath = ROOT_DIR . DS . $config['build']['path'] . DS . 'phppack_' . $key . "_a.js";
-            to_mkdir($filePath, $value, true, true);
-        }
-        $html       = $this->dataSplitting($data);
-        $file       = base64_decode($config['config']['build']['template']);
-        $file       = file_get_contents($file);
-        $content    = str_replace('</head>', $html, $file);
-        $compileTpl = ROOT_DIR . DS . $config['build']['path'] . DS . md5($data['router']) . ".html";
-        #创建编译文件
-        to_mkdir($compileTpl, $content, true, true);
-    }
-
-    /**
-     * 页面存储-API调用
-     * @param  string $value [description]
-     * @return [type]        [description]
-     */
-    public function single() {
-        $data = array(
-            'compontent' => base64_decode($_POST['compontent']),
-            'style'      => base64_decode($_POST['style']),
-            'router'     => empty($_POST['router']) ? 'home/home' : $_POST['router'],
-            'config'     => empty($_POST['config']) ? [] : to_array($_POST['config']),
-            'css'        => empty($_POST['css']) ? [] : to_array($_POST['css']),
-            'js'         => empty($_POST['js']) ? [] : to_array($_POST['js']),
-        );
-
-        $html = $this->dataSplitting($data);
-        $file = base64_decode($data['config']['build']['template']);
-        if (!is_file($file)) {
-            __PHPPACK_ERROR("找不到{$file}模板文件", 80017);
-        }
-        $body       = file_get_contents($file);
-        $content    = str_replace('</head>', $html, $body);
-        $compileTpl = ROOT_DIR . DS . $data['config']['build']['path'] . DS . basename($file);
-        #创建编译文件
-        to_mkdir($compileTpl, $content, true, true);
-        exit;
     }
 
     /**
@@ -332,26 +139,16 @@ SCR;
      * @param  boolean $is_full   是否为完整目录
      * @return array              返回编译数组
      */
-    public function intConfig($path = '', $is_full = false) {
+    protected function intConfig() {
         $phppack = "";
-        #判断目录是否为完整目录
-        if ($is_full) {
-            $phppack = trim($path, DS) . DS . "phppack.json";
-        }
-
-        #判断如果目录为空
-        if (empty($path)) {
-            $phppack = ROOT_DIR . DS . "phppack.json";
-        }
-
         #如果不存在 执行目录拼接
         if (!is_file($phppack)) {
-            $phppack = ROOT_DIR . DS . trim($path, DS) . DS . "phppack.json";
+            $phppack = ROOT_DIR . DS . "phppack.json";
         }
 
         #依然不存在 执行错误提示
         if (!is_file($phppack)) {
-            __PHPPACK_ERROR("找不到phppack.json配置文件", 80010);
+            __PHPPACK_ERROR("找不到phppack.json配置文件,请确保存在于网站根目录", 80010);
         }
 
         #读取配置信息
@@ -375,7 +172,7 @@ SCR;
      * @param  string $data [description]
      * @return [type]       [description]
      */
-    public function dataSplitting($data = '') {
+    protected function dataSplitting($data = '') {
         extract($data);
         $html = "";
         foreach ($css as $key => $value) {
@@ -390,75 +187,10 @@ SCR;
     }
 
     /**
-     * 页面组装
-     * @param  string $data [description]
-     * @return [type]       [description]
-     */
-    public function htmlSplitting($data = '') {
-        extract($data);
-        $html = '<script type="text/javascript" src="' . ROOT . '/vendor/phppacks/phppack/build/bin/babel.js"></script>';
-        foreach ($css as $key => $value) {
-            $html .= '<link rel="stylesheet" type="text/css" href="' . $value . '">';
-        }
-        foreach ($js as $key => $value) {
-            $html .= '<script type="text/javascript" src="' . $value . '"></script>';
-        }
-        $html .= '<style type="text/css">' . implode("", $this->styleModules) . '</style>';
-        $html .= <<<SC
-    <script type="text/javascript">
-    var __phppack_require = [];
-    var __phppack_compile = function(modules) {
-        var installedModules = [];
-        function require(moduleNum) {
-            var numArr =  moduleNum.split('_');
-            var moduleId = numArr[1];
-            if (installedModules[moduleId]){
-                return installedModules[moduleId].exports;
-            }
-            var module = installedModules[moduleId] = {
-                exports: {},
-                id: moduleId,
-                loaded: false
-            };
-            modules[moduleId].call(module.exports, module, module.exports, require);
-            module.loaded = true;
-            return module.exports;
-        }
-
-        function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-        require.ensure = function(name){
-            var _ensure = require(name);
-            var _ensure2 = _interopRequireDefault(_ensure);
-            return _ensure2.default;
-        }
-        require.m = modules;
-        require.c = installedModules;
-        require.p = "";
-        return require("phppack_0");
-    }
-    </script>
-SC;
-        /**
-         * 循环输出组件
-         * @var [type]
-         */
-        foreach ($compontent as $key => $value) {
-            $html .= '<script type="text/babel" code="' . $key . '">' . $value . '</script>';
-        }
-        $html .= <<<CM
-    <script type="text/babel" code="999999999">
-    __phppack_compile(__phppack_require);
-    </script>
-CM;
-        return $html;
-    }
-
-    /**
      * 获取入口文件
      * @return [type] [description]
      */
-    private function getEntry() {
+    protected function getEntry() {
         #改变目录
         chdir($this->path);
         #循环读取文件-目前只支持一体化
@@ -479,12 +211,11 @@ CM;
         $this->getLoadList();
 
         return array(
-            "url"        => isset($this->build['url']) && !empty($this->build['url']) ? $this->build['url'] : ROOT . "/phppack/code/single",
+            "url"        => isset($this->build['url']) && !empty($this->build['url']) ? $this->build['url'] : ROOT . "/phppack/compile/single",
             "compontent" => $compontent,
             "css"        => isset($this->loadModules['css']) && !empty($this->loadModules['css']) ? $this->loadModules['css'] : [],
             "js"         => isset($this->loadModules['js']) && !empty($this->loadModules['js']) ? $this->loadModules['js'] : []
         );
-        exit();
     }
 
     /**
@@ -493,7 +224,7 @@ CM;
      * @param  string $fileAlias 文件别名   例：app
      * @return string            [description]
      */
-    private function deepSearchFile($fileName = "", $fileAlias = "") {
+    protected function deepSearchFile($fileName = "", $fileAlias = "") {
         if (empty($fileName)) {
             return;
         }
@@ -580,7 +311,7 @@ CM;
      * @param  string $extension 扩展
      * @param  string $content   内容
      */
-    public function saveModules($code = '', $name = '', $alias = '', $extension = '', $content = '') {
+    protected function saveModules($code = '', $name = '', $alias = '', $extension = '', $content = '') {
         #存储安装模块
         $this->installedModules[$code] = array(
             "index" => $this->itemIndex,
@@ -602,7 +333,7 @@ CM;
      * @param  string $code        唯一码
      * @return [type]              [description]
      */
-    private function getImportDeclaration($fileContent = '', $body = "", $file = "", $code = "") {
+    protected function getImportDeclaration($fileContent = '', $body = "", $file = "", $code = "") {
         switch ($this->module) {
         case 'match':
             return $this->phpRegexMatch($fileContent, $body, $file, $code);
@@ -620,7 +351,7 @@ CM;
      * @param  string $file        [description]
      * @return [type]              [description]
      */
-    private function phpRegexMatch($fileContent = '', $body = "", $file = "", $code = "") {
+    protected function phpRegexMatch($fileContent = '', $body = "", $file = "", $code = "") {
         $fileList = array();
         if ($this->config['build']['check']) {
             $fileContent = $this->checkScriptError($fileContent, $body, $file, $code);
@@ -643,7 +374,7 @@ CM;
      * @param  string $file   [description]
      * @return [type]         [description]
      */
-    private function javascriptAST($script = '', $body = '', $file = '', $code = "") {
+    protected function javascriptAST($script = '', $body = '', $file = '', $code = "") {
         try {
             $this->import = array();
             $options      = array('sourceType' => "module", "jsx" => true);
@@ -682,7 +413,7 @@ CM;
      * @param  string $value [description]
      * @return [type]        [description]
      */
-    private function checkScriptError($script = '', $body = '', $file = '', $code = '') {
+    protected function checkScriptError($script = '', $body = '', $file = '', $code = '') {
         try {
             #AST参数选项
             $options = array('sourceType' => "module", "jsx" => false);
@@ -696,9 +427,6 @@ CM;
             $content = $renderer->render($ast);
             #存储代码
             $this->templateModules[$code] = $content;
-            // P($file);
-            // highlight_string($content);
-            // echo "<br>";
             return $content;
         } catch (\Peast\Syntax\Exception $e) {
             #获取错误行
@@ -725,7 +453,7 @@ CM;
      * @param  [type] $fileCode    文件唯一码
      * @return [type]              [description]
      */
-    private function getDomDocument($fileName = '', $fileContent = '', $fileCode = '') {
+    protected function getDomDocument($fileName = '', $fileContent = '', $fileCode = '') {
         $import = [];
         #判断DOM是否实例化
         if (empty($this->simpleHtmlDom)) {
@@ -769,7 +497,7 @@ TPL;
      * 文件内容查找替换
      * @return [type] [description]
      */
-    private function contentLookupReplacement($content = "", $code = "") {
+    protected function contentLookupReplacement($content = "", $code = "") {
         /**
          * 节点查询模式match|ast
          * @var string
@@ -790,7 +518,7 @@ TPL;
      * @param  string $code    [description]
      * @return [type]          [description]
      */
-    public function phpRegexReplace($content = "", $code = "") {
+    protected function phpRegexReplace($content = "", $code = "") {
         $parentPath = $this->installedModules[$code]['file'];
         $ruleValue  = "#import\s+([\w]*|\{[\s\S]*?\})?([\s+]from[\s+])?[\'\"]([\.\/\w\-\_]*)[\'\"]#is";
         if (preg_match_all($ruleValue, $content, $array, PREG_SET_ORDER)) {
@@ -805,7 +533,19 @@ TPL;
                         $toimport = "import $import[1] from '$name'";
                         $content  = str_replace($import[0], $toimport, $content);
                     } else {
-                        $content = str_replace($import[0], "", $content);
+                        #判断处理为插件依赖模块
+                        $dependencies = array_keys($this->config['dependencies']);
+                        if (in_array($import[3], $dependencies)) {
+                            if ($import[1] == $import[3]) {
+                                $content = str_replace($import[0], "", $content);
+                            } else {
+                                $toimport = "var $import[1] = function(obj){ return obj && obj.default ? obj.default : obj; }($import[3]);";
+                                $content  = str_replace($import[0], $toimport, $content);
+                            }
+                        } else {
+                            $content = str_replace($import[0], "", $content);
+                        }
+
                     }
 
                 }
@@ -834,7 +574,7 @@ TPL;
      * @param  string $code    [description]
      * @return [type]          [description]
      */
-    public function jsReplaceAST($content = "", $code = "") {
+    protected function jsReplaceAST($content = "", $code = "") {
         $this->file = $this->installedModules[$code]['file'];
         try {
             $options = array('sourceType' => "module", "jsx" => true);
@@ -893,7 +633,7 @@ TPL;
      * @param  string $parentPath 父级文件
      * @return [type]             [description]
      */
-    public function getFileFullPath($fileName = '', $fileAlias = '', $parentPath = '') {
+    protected function getFileFullPath($fileName = '', $fileAlias = '', $parentPath = '') {
         #获取父级路径
         $parentPath = pathinfo($parentPath, PATHINFO_EXTENSION) ? dirname($parentPath) : $parentPath;
         #读取扩展名
@@ -949,7 +689,7 @@ TPL;
      * 返回代码所在行
      * @return [type] [description]
      */
-    public function getRowsread($content) {
+    protected function getRowsread($content) {
         $line = 1;
         foreach ($content as $key => $value) {
             $preg = "#\<script(.*?)\>#is";
@@ -968,7 +708,7 @@ TPL;
      * @param  string $value [description]
      * @return [type]        [description]
      */
-    public function getLoadList() {
+    protected function getLoadList() {
         $path = getcwd() . "/" . $this->config['build']['path'];
         $url  = $this->web() . "/" . $this->config['build']['path'];
         foreach ($this->fileModules as $key => $value) {
@@ -991,7 +731,7 @@ TPL;
      * @param  string $type [description]
      * @return [type]       [description]
      */
-    public function intFileInfo($file = '', $type = 'js') {
+    protected function intFileInfo($file = '', $type = 'js') {
         #判断是否为文件
         if (is_file($file)) {
             $code = md5_file($file);
@@ -1022,7 +762,7 @@ TPL;
      * @param  string $value [description]
      * @return [type]        [description]
      */
-    private function intStyleInfo($style = '', $code = '') {
+    protected function intStyleInfo($style = '', $code = '') {
         if (!$style) {
             return false;
         }
@@ -1052,7 +792,7 @@ TPL;
      * @param  string $document [description]
      * @return [type]           [description]
      */
-    private function intTemplateinfo($tpl = '', $scoped = false, $fileName = '') {
+    protected function intTemplateinfo($tpl = '', $scoped = false, $fileName = '') {
         if ($tpl) {
             $this->intDomImage($tpl->find('img'), $fileName);
             #处理template子集
@@ -1065,7 +805,7 @@ TPL;
         }
     }
 
-    public function intDomImage($img = '', $fileName) {
+    protected function intDomImage($img = '', $fileName) {
         if ($img) {
             foreach ($img as $key => $value) {
                 if ($src = $value->src) {
@@ -1083,7 +823,7 @@ TPL;
      * @param    string     $value [description]
      * @return   [type]            [description]
      */
-    private function cssScoped($content = '', $_data = false) {
+    protected function cssScoped($content = '', $_data = false) {
         if ($_data) {
             $data    = "[$_data]";
             $preg    = "#(\w*)\s*\{#is";
@@ -1098,7 +838,7 @@ TPL;
      * @param  string $_data    [description]
      * @return [type]           [description]
      */
-    private function tagDispose(&$children = '', $_data = false) {
+    protected function tagDispose(&$children = '', $_data = false) {
         #处理驼峰标签
         $children->tag = __PHPPACK_FORMAT($children->tag, '-');
         #是否设置作用域
@@ -1118,7 +858,7 @@ TPL;
      * @param  string $file [description]
      * @return [type]       [description]
      */
-    public function less($file = '') {
+    protected function less($file = '') {
         if (!$this->less) {
             require_once dirname(dirname(__FILE__)) . "/bin/lessc.inc.php";
             $this->less = new \lessc();
@@ -1137,7 +877,7 @@ TPL;
      * @param  string $file [description]
      * @return [type]       [description]
      */
-    public function scss($file = '') {
+    protected function scss($file = '') {
         if (!$this->scss) {
             require_once dirname(dirname(__FILE__)) . "/bin/scss.inc.php";
             $this->scss = new \scssc();
@@ -1157,7 +897,7 @@ TPL;
      *
      * @return string
      */
-    private function domain() {
+    protected function domain() {
         $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
         return defined('RUN_MODE') && RUN_MODE != 'HTTP' ? ''
         : trim($protocol . $_SERVER['HTTP_HOST'] . dirname($_SERVER['SCRIPT_NAME']), '/\\');
@@ -1169,7 +909,7 @@ TPL;
      *
      * @return string
      */
-    private function web() {
+    protected function web() {
         $root = self::domain();
         $path = trim(str_replace(ROOT_DIR, "", getcwd()), DS);
         return $root . $path;

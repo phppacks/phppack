@@ -20,15 +20,16 @@ class phppack {
      * 单例调用
      * @return [type] [description]
      */
-    protected static function single() {
-        if (!self::$link) {
-            self::$link = new module\dependence();
+    protected static function single($module) {
+        if (!isset(self::$link[$module])) {
+            $class               = __NAMESPACE__ . '\module\\' . $module;
+            self::$link[$module] = new $class();
         }
-        return self::$link;
+        return self::$link[$module];
     }
 
     public function __call($method, $params) {
-        return call_user_func_array([self::single(), $method], $params);
+        return call_user_func_array([self::single($method), 'bootstrap'], $params);
     }
 
     public static function __callStatic($name, $arguments) {
